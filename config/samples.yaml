@@ -1,0 +1,9 @@
+#samples.yaml for mutect2.snakefile
+#Anna Hoge
+#Template made October 18th, 2019
+#Ha Lab
+#Fred Hutchinson Cancer Research Center
+
+samples: #format is tumor_name: [tumor_filepath, matched_normal_name, matched_normal_filepath]
+  tumor_name1:  [/tumor1/filepath.bam, normal_name1, /normal1/filepath.bam]
+  tumor_name2:  [/tumor2/filepath.bam, normal_name2, /normal2/filepath.bam]

@@ -1,0 +1,36 @@
+#cluster_slurm.yaml for mutect2.snakefile
+#Anna Hoge
+#Template made October 18th, 2019
+#Ha Lab
+#Fred Hutchinson Cancer Research Center
+
+__default__:
+    partition: campus
+    time: "24:0:0"
+    mem: 4G
+    ncpus: 1
+    ntasks: 1
+    output: logs/cluster/{rule}.%A.out
+
+mutect2:
+    time: "384:0:0"
+    mem: 8G
+
+#merge_mutect_stats:
+
+learn_read_orientation_model:
+    time: "48:0:0"
+    mem: 8G
+
+#get_pileup_summaries:
+
+#calculate_contamination:
+
+#gather_mutect_calls:
+
+#create_vcf_index:
+
+filter_mutect_calls:
+    partition: largenode
+    mem: 34G
+    ncpus: 6

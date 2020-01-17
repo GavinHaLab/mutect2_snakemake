@@ -1,0 +1,30 @@
+#config.yaml for mutect2.snakefile
+#Anna Hoge
+#Template made October 18th, 2019
+#Ha Lab
+#Fred Hutchinson Cancer Research Center
+
+#SELECT PANEL OF NORMALS IN VCF.GZ FORMAT OR "null"
+panel_of_normals: null
+
+#The following 3 lines are the settings for hg38.  If this snakemake needs to
+#be run for hg19, the corresponding mutect2_germline_resouce and
+#known_polymorphic_sites will need to be downloaded, and changed in this config
+#file, along with reference_genome.
+
+#reference genome for mutect2 call, with index files in same folder as .fa file
+reference_genome: /fh/fast/ha_g/grp/reference/GRCh38/10XG/refdata-GRCh38-2.1.0/fasta/genome.fa
+
+#with index files in same folder as .vcf.gz file
+mutect2_germline_resource: /fh/fast/ha_g/grp/reference/GRCh38/known_polymorphic_sites/somatic-hg38_af-only-gnomad.hg38.vcf.gz
+
+#used for get_pileup_summaries
+known_polymorphic_sites: /fh/fast/ha_g/grp/reference/GRCh38/known_polymorphic_sites/somatic-hg38_small_exac_common_3.hg38.vcf.gz
+
+#used for running mutect2 by interval
+chromosomes: ['chr1','chr2','chr3','chr4','chr5','chr6','chr7','chr8','chr9','chr10','chr11','chr12','chr13','chr14','chr15','chr16','chr17','chr18','chr19','chr20','chr21','chr22','chrX', 'chrY']
+
+#tools used.  these must be module loaded before running snakemake. see snakefile for load commands
+gatk: /fh/fast/ha_g/user/ahoge/software/gatk-4.1.4.0/gatk
+java: /app/java/jdk1.8.0_31/bin/java
+picard_jar: $EBROOTPICARD/picard.jar
