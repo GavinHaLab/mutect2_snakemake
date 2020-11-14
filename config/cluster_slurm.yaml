@@ -5,7 +5,7 @@
 #Fred Hutchinson Cancer Research Center
 
 __default__:
-    partition: campus
+    partition: campus-new
     time: "24:0:0"
     mem: 4G
     ncpus: 1
@@ -31,6 +31,12 @@ learn_read_orientation_model:
 #create_vcf_index:
 
 filter_mutect_calls:
-    partition: largenode
     mem: 34G
     ncpus: 6
+    
+extract_pass_variants:
+    mem: 1G
+    
+extract_pass_snvs:
+    mem: 1G
+    
