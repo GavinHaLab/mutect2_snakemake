@@ -6,12 +6,14 @@
 
 """
 #before running snakemake, do in tmux terminal:
-ml snakemake/5.2.4-foss-2016b-Python-3.6.6
-ml java/jdk1.8.0_31
-ml picard/2.18.29-Java
+ml snakemake/5.19.2-foss-2019b-Python-3.7.4
+ml Java/11.0.2
+ml picard/2.21.6-Java-11
+ml GATK/4.1.8.1-GCCcore-8.3.0-Java-11
+ml tabix/0.2.6-GCCcore-8.3.0
 
 #command to run snakemake (remove -np at end when done validating):
-snakemake -s mutect2.snakefile --latency-wait 60 --restart-times 3 --keep-going --cluster-config config/cluster_slurm.yaml --cluster "sbatch -p {cluster.partition} --mem={cluster.mem} -t {cluster.time} -c {cluster.ncpus} -n {cluster.ntasks} -o {cluster.output}" -j 100 -np
+snakemake -s mutect2.snakefile --latency-wait 60 --restart-times 2 --keep-going --cluster-config config/cluster_slurm.yaml --cluster "sbatch -p {cluster.partition} --mem={cluster.mem} -t {cluster.time} -c {cluster.ncpus} -n {cluster.ntasks} -o {cluster.output}" -j 100 -np
 """
 
 configfile: "config/samples.yaml"
@@ -20,19 +22,15 @@ configfile: "config/config.yaml"
 
 rule all:
     input:
-        expand("results/{tumors}/unfiltered_{chromosomes}.vcf.gz", tumors = config["samples"], chromosomes = config["chromosomes"]),
-        expand("results/{tumors}/unfiltered_{chromosomes}.vcf.gz.tbi", tumors = config["samples"], chromosomes = config["chromosomes"]),
-        expand("results/{tumors}/unfiltered_{chromosomes}_f1r2.tar.gz", tumors = config["samples"], chromosomes = config["chromosomes"]),
-        expand("results/{tumors}/unfiltered_{chromosomes}.vcf.gz.stats", tumors = config["samples"], chromosomes = config["chromosomes"]),
         expand("results/{tumors}/mutect_merged.stats", tumors = config["samples"]),
         expand("results/{tumors}/read_orientation_model.tar.gz", tumors = config["samples"]),
         expand("results/{tumors}/pileup_summaries.table", tumors = config["samples"]),
         expand("results/{tumors}/segments.table", tumors = config["samples"]),
         expand("results/{tumors}/contamination.table", tumors = config["samples"]),
-        expand("results/{tumors}/gathered_unfiltered.vcf.gz", tumors = config["samples"]),
-        expand("results/{tumors}/gathered_unfiltered.vcf.gz.tbi", tumors = config["samples"]),
         expand("results/{tumors}/filtered_all.vcf.gz", tumors = config["samples"]),
-        expand("results/{tumors}/filtering_stats.tsv", tumors = config["samples"])
+        expand("results/{tumors}/filtering_stats.tsv", tumors = config["samples"]),
+        expand("results/{tumors}/pass_variants.vcf.gz", tumors = config["samples"]),
+        expand("results/{tumors}/pass_snvs.vcf.gz", tumors = config["samples"])
 
 
 rule mutect2:
@@ -40,10 +38,10 @@ rule mutect2:
         tumor_filepath = lambda wildcards: config["samples"][wildcards.tumors][0],
         normal_filepath = lambda wildcards: config["samples"][wildcards.tumors][2]
     output:
-        vcf = protected("results/{tumors}/unfiltered_{chromosomes}.vcf.gz"),
-        tbi = protected("results/{tumors}/unfiltered_{chromosomes}.vcf.gz.tbi"),
-        tar = protected("results/{tumors}/unfiltered_{chromosomes}_f1r2.tar.gz"),
-        stats = protected("results/{tumors}/unfiltered_{chromosomes}.vcf.gz.stats")
+        vcf = temp("results/{tumors}/unfiltered_{chromosomes}.vcf.gz"),
+        tbi = temp("results/{tumors}/unfiltered_{chromosomes}.vcf.gz.tbi"),
+        tar = temp("results/{tumors}/unfiltered_{chromosomes}_f1r2.tar.gz"),
+        stats = temp("results/{tumors}/unfiltered_{chromosomes}.vcf.gz.stats")
     params:
         reference_genome = config["reference_genome"],
         mutect2_germline_resource = config["mutect2_germline_resource"],
@@ -248,7 +246,7 @@ rule gather_mutect_calls:
         chrX_calls = "results/{tumors}/unfiltered_chrX.vcf.gz",
         chrY_calls = "results/{tumors}/unfiltered_chrY.vcf.gz"
     output:
-        protected("results/{tumors}/gathered_unfiltered.vcf.gz")
+        temp("results/{tumors}/gathered_unfiltered.vcf.gz")
     params:
         java = config["java"],
         picard_jar = config["picard_jar"]
@@ -287,7 +285,9 @@ rule create_vcf_index:
     input:
         "results/{tumors}/gathered_unfiltered.vcf.gz"
     output:
-        protected("results/{tumors}/gathered_unfiltered.vcf.gz.tbi")
+        temp("results/{tumors}/gathered_unfiltered.vcf.gz.tbi")
+    params:
+        tabix = config["tabix"]
     log:
         "logs/create_vcf_index/{tumors}_create_vcf_index.txt"
     shell:
@@ -320,3 +320,43 @@ rule filter_mutect_calls:
         --stats {input.mutect_stats} \
         --filtering-stats {output.filtering_stats} \
         -O {output.filtered_vcf}) 2> {log}"
+
+        
+rule extract_pass_variants:
+    input:
+        filtered_vcf = "results/{tumors}/filtered_all.vcf.gz"
+    output:
+        pass_variants_vcf = protected("results/{tumors}/pass_variants.vcf.gz")
+    params:
+        gatk = config["gatk"],
+        reference_genome = config["reference_genome"]
+    log:
+        "logs/extract_pass_variants/{tumors}_extract_pass_variants.txt"
+    shell:
+        "({params.gatk} SelectVariants \
+        -R {params.reference_genome} \
+        -V {input} \
+        --exclude-filtered \
+        --create-output-variant-index \
+        -O {output}) 2> {log}"
+
+
+rule extract_pass_snvs:
+    input:
+        pass_variants_vcf = "results/{tumors}/filtered_all.vcf.gz"
+    output:
+        pass_snv_vcf = protected("results/{tumors}/pass_snvs.vcf.gz")
+    params:
+        gatk = config["gatk"],
+        reference_genome = config["reference_genome"]
+    log:
+        "logs/extract_pass_snvs/{tumors}_extract_pass_snvs.txt"
+    shell:
+        "({params.gatk} SelectVariants \
+        -R {params.reference_genome} \
+        -V {input} \
+        --select-type-to-include SNP \
+        --exclude-filtered \
+        --create-output-variant-index \
+        -O {output}) 2> {log}"
+        
