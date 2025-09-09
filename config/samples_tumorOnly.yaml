@@ -1,0 +1,4 @@
+samples:
+  sample1: "/path/to/tumor1.bam"
+  sample2: "/path/to/tumor2.bam" 
+  sample3: "/path/to/tumor3.bam"
